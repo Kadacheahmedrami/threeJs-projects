@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, useMemo } from "react"
 import { Canvas, useFrame, useThree, ThreeEvent } from "@react-three/fiber"
 import { OrbitControls, Text } from "@react-three/drei"
 import * as THREE from "three"
@@ -10,6 +10,7 @@ import type { MazeProps, MazeGrid } from "@/app/types/maze"
 interface MazeSceneProps extends MazeProps {
   isAnimating: boolean;
   startAnimation: () => void;
+  cellSize?: number;
 }
 
 // ExpansionCube props interface
@@ -40,11 +41,11 @@ interface ExpansionNode {
 }
 
 export default function MazeRenderer({ grid, cellSize = 1 }: MazeProps) {
-  const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  const [isAnimating, setIsAnimating] = useState<boolean>(false)
   
   const startAnimation = () => {
-    setIsAnimating(true);
-  };
+    setIsAnimating(true)
+  }
 
   return (
     <div className="relative w-full h-screen bg-black">
@@ -89,35 +90,35 @@ export default function MazeRenderer({ grid, cellSize = 1 }: MazeProps) {
 
 // Expansion cube component for the animation
 function ExpansionCube({ position, scale, color, delay }: ExpansionCubeProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [active, setActive] = useState<boolean>(false);
+  const meshRef = useRef<THREE.Mesh>(null)
+  const [active, setActive] = useState<boolean>(false)
   
   useEffect(() => {
     const timer = setTimeout(() => {
-      setActive(true);
-    }, delay * 150); // Stagger the animation
+      setActive(true)
+    }, delay * 150) // Stagger the animation
     
-    return () => clearTimeout(timer);
-  }, [delay]);
+    return () => clearTimeout(timer)
+  }, [delay])
   
-  useFrame((state, delta) => {
-    if (!meshRef.current || !active) return;
+  useFrame((state) => {
+    if (!meshRef.current || !active) return
     
     // Slimy pulsing effect
-    const time = state.clock.getElapsedTime();
-    meshRef.current.scale.y = scale.y * (1 + Math.sin(time * 5 + delay) * 0.1);
+    const time = state.clock.getElapsedTime()
+    meshRef.current.scale.y = scale.y * (1 + Math.sin(time * 5 + delay) * 0.1)
     
     // Slithering serpent-like movement
-    meshRef.current.position.y = position[1] + Math.sin(time * 3 + delay * 2) * 0.1;
+    meshRef.current.position.y = position[1] + Math.sin(time * 3 + delay * 2) * 0.1
     
     // Slight rotation for more organic feel
-    meshRef.current.rotation.y = Math.sin(time * 2 + delay) * 0.1;
-  });
+    meshRef.current.rotation.y = Math.sin(time * 2 + delay) * 0.1
+  })
   
   // Size transition on appearance
   const currentScale = active 
     ? [scale.x, scale.y, scale.z] 
-    : [0.01, 0.01, 0.01];
+    : [0.01, 0.01, 0.01]
   
   return (
     <mesh 
@@ -138,21 +139,21 @@ function ExpansionCube({ position, scale, color, delay }: ExpansionCubeProps) {
         emissiveIntensity={0.3} 
       />
     </mesh>
-  );
+  )
 }
 
-function MazeScene({ grid, cellSize, isAnimating, startAnimation }: MazeSceneProps) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const startRef = useRef<THREE.Mesh>(null);
-  const endRef = useRef<THREE.Mesh>(null);
-  const startTextRef = useRef<THREE.Object3D>(null);
-  const endTextRef = useRef<THREE.Object3D>(null);
-  const [expansionPath, setExpansionPath] = useState<ExpansionNode[]>([]);
-  const { raycaster, camera, mouse } = useThree();
+function MazeScene({ grid, cellSize = 1, isAnimating, startAnimation }: MazeSceneProps) {
+  const meshRef = useRef<THREE.InstancedMesh>(null)
+  const startRef = useRef<THREE.Mesh>(null)
+  const endRef = useRef<THREE.Mesh>(null)
+  const startTextRef = useRef<THREE.Object3D>(null)
+  const endTextRef = useRef<THREE.Object3D>(null)
+  const [expansionPath, setExpansionPath] = useState<ExpansionNode[]>([])
+  const { raycaster, camera, mouse } = useThree()
 
   // Calculate maze dimensions
-  const width = grid[0].length;
-  const height = grid.length;
+  const width = grid[0].length
+  const height = grid.length
   
   // Count walls for instanced mesh
   const wallCount = grid.reduce<number>(
@@ -163,54 +164,59 @@ function MazeScene({ grid, cellSize, isAnimating, startAnimation }: MazeScenePro
         0
       ),
     0
-  );
+  )
 
-  // Find start and end positions
-  let startPos = { x: 0, z: 0 };
-  let endPos = { x: 0, z: 0 };
-  grid.forEach((row, z) => {
-    row.forEach((cell, x) => {
-      if (cell === 2) startPos = { x, z };
-      if (cell === 3) endPos = { x, z };
-    });
-  });
+  // Memoize start and end positions to prevent re-creating objects on every render
+  const { startPos, endPos } = useMemo(() => {
+    let start = { x: 0, z: 0 }
+    let end = { x: 0, z: 0 }
+    grid.forEach((row, z) => {
+      row.forEach((cell, x) => {
+        if (cell === 2) start = { x, z }
+        if (cell === 3) end = { x, z }
+      })
+    })
+    return { startPos: start, endPos: end }
+  }, [grid])
 
   // BFS algorithm for expansion
   useEffect(() => {
-    if (!isAnimating) return;
+    if (!isAnimating) return
     
     // Run BFS to find path through maze
-    const visited: boolean[][] = Array(height).fill(0).map(() => Array(width).fill(false));
-    const queue: QueueNode[] = [];
-    const expansionNodes: ExpansionNode[] = [];
+    const visited: boolean[][] = Array(height)
+      .fill(0)
+      .map(() => Array(width).fill(false))
+    const queue: QueueNode[] = []
+    const expansionNodes: ExpansionNode[] = []
     
     // Start BFS from start position
-    queue.push({ x: startPos.x, z: startPos.z, distance: 0, parent: null });
-    visited[startPos.z][startPos.x] = true;
+    queue.push({ x: startPos.x, z: startPos.z, distance: 0, parent: null })
+    visited[startPos.z][startPos.x] = true
     
     // BFS search directions: right, down, left, up
-    const dx = [1, 0, -1, 0];
-    const dz = [0, 1, 0, -1];
+    const dx = [1, 0, -1, 0]
+    const dz = [0, 1, 0, -1]
     
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const current = queue.shift()!
       
       // Add to expansion path with distance for delay timing
       expansionNodes.push({
         x: current.x,
         z: current.z,
         distance: current.distance
-      });
+      })
       
       // Check if we've reached the end
       if (grid[current.z][current.x] === 3) {
-        break;
+        break
       }
       
       // Explore in all four directions
       for (let i = 0; i < 4; i++) {
-        const newX = current.x + dx[i];
-        const newZ = current.z + dz[i];
+        const newX = current.x + dx[i]
+        const newZ = current.z + dz[i]
         
         // Check if valid move (within bounds, not a wall, not visited)
         if (
@@ -219,44 +225,44 @@ function MazeScene({ grid, cellSize, isAnimating, startAnimation }: MazeScenePro
           grid[newZ][newX] !== 1 &&
           !visited[newZ][newX]
         ) {
-          visited[newZ][newX] = true;
+          visited[newZ][newX] = true
           queue.push({
             x: newX,
             z: newZ,
             distance: current.distance + 1,
             parent: current
-          });
+          })
         }
       }
     }
     
-    setExpansionPath(expansionNodes);
-  }, [isAnimating, grid, height, width, startPos]);
+    setExpansionPath(expansionNodes)
+  }, [isAnimating, grid, height, width, startPos])
 
   // Handle click on start cube with correct event type for React Three Fiber
   const handleStartClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation();
+    event.stopPropagation()
     if (!isAnimating) {
-      startAnimation();
+      startAnimation()
     }
-  };
+  }
 
-  // Update mesh positions
+  // Update mesh positions on every frame
   useFrame((state) => {
-    if (!meshRef.current) return;
+    if (!meshRef.current) return
 
-    let index = 0;
-    const matrix = new THREE.Matrix4();
-    const color = new THREE.Color();
+    let index = 0
+    const matrix = new THREE.Matrix4()
+    const color = new THREE.Color()
 
     // Check if start cube was clicked
     if (startRef.current) {
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObject(startRef.current);
+      raycaster.setFromCamera(mouse, camera)
+      const intersects = raycaster.intersectObject(startRef.current)
       if (intersects.length > 0 && !isAnimating) {
-        startRef.current.scale.set(1.1, 1.1, 1.1);
+        startRef.current.scale.set(1.1, 1.1, 1.1)
       } else if (!isAnimating) {
-        startRef.current.scale.set(1, 1, 1);
+        startRef.current.scale.set(1, 1, 1)
       }
     }
 
@@ -264,70 +270,64 @@ function MazeScene({ grid, cellSize, isAnimating, startAnimation }: MazeScenePro
     grid.forEach((row, z) => {
       row.forEach((cell, x) => {
         if (cell === 1) {
-          // Wall
-          const worldX = (x - width / 2) * cellSize!;
-          const worldZ = (z - height / 2) * cellSize!;
+          const worldX = (x - width / 2) * cellSize
+          const worldZ = (z - height / 2) * cellSize
 
-          matrix.setPosition(worldX, 0, worldZ);
-          meshRef.current!.setMatrixAt(index, matrix);
+          matrix.setPosition(worldX, 0, worldZ)
+          meshRef.current!.setMatrixAt(index, matrix)
 
-          // Color based on distance from center
-          const distance = Math.sqrt(worldX * worldX + worldZ * worldZ);
-          const hue = 0.6; // Blue-ish color
-          const lightness = 0.4 + distance / (width * cellSize!); // Gradually lighter outward
-          color.setHSL(hue, 0.7, lightness);
-          meshRef.current!.setColorAt(index, color);
+          const distance = Math.sqrt(worldX * worldX + worldZ * worldZ)
+          const hue = 0.6
+          const lightness = 0.4 + distance / (width * cellSize)
+          color.setHSL(hue, 0.7, lightness)
+          meshRef.current!.setColorAt(index, color)
 
-          index++;
+          index++
         }
-      });
-    });
+      })
+    })
 
-    // Update start and end positions
+    // Update start and end cube positions
     if (startRef.current) {
-      const startWorldX = (startPos.x - width / 2) * cellSize!;
-      const startWorldZ = (startPos.z - height / 2) * cellSize!;
-      startRef.current.position.set(startWorldX, 0.5, startWorldZ);
+      const startWorldX = (startPos.x - width / 2) * cellSize
+      const startWorldZ = (startPos.z - height / 2) * cellSize
+      startRef.current.position.set(startWorldX, 0.5, startWorldZ)
     }
 
     if (endRef.current) {
-      const endWorldX = (endPos.x - width / 2) * cellSize!;
-      const endWorldZ = (endPos.z - height / 2) * cellSize!;
-      endRef.current.position.set(endWorldX, 0.5, endWorldZ);
+      const endWorldX = (endPos.x - width / 2) * cellSize
+      const endWorldZ = (endPos.z - height / 2) * cellSize
+      endRef.current.position.set(endWorldX, 0.5, endWorldZ)
     }
 
     // Update text positions
     if (startTextRef.current) {
-      const startWorldX = (startPos.x - width / 2) * cellSize!;
-      const startWorldZ = (startPos.z - height / 2) * cellSize!;
-      startTextRef.current.position.set(startWorldX, 2, startWorldZ);
+      const startWorldX = (startPos.x - width / 2) * cellSize
+      const startWorldZ = (startPos.z - height / 2) * cellSize
+      startTextRef.current.position.set(startWorldX, 2, startWorldZ)
     }
 
     if (endTextRef.current) {
-      const endWorldX = (endPos.x - width / 2) * cellSize!;
-      const endWorldZ = (endPos.z - height / 2) * cellSize!;
-      endTextRef.current.position.set(endWorldX, 2, endWorldZ);
+      const endWorldX = (endPos.x - width / 2) * cellSize
+      const endWorldZ = (endPos.z - height / 2) * cellSize
+      endTextRef.current.position.set(endWorldX, 2, endWorldZ)
     }
 
-    meshRef.current.instanceMatrix.needsUpdate = true;
-    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  });
+    meshRef.current.instanceMatrix.needsUpdate = true
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true
+  })
 
   return (
     <group>
       {/* Walls using instanced mesh */}
       <instancedMesh ref={meshRef} args={[undefined, undefined, wallCount]} castShadow receiveShadow>
-        <boxGeometry args={[cellSize! * 0.9, 1.5, cellSize! * 0.9]} />
+        <boxGeometry args={[cellSize * 0.9, 1.5, cellSize * 0.9]} />
         <meshStandardMaterial roughness={0.4} metalness={0.6} />
       </instancedMesh>
 
-      {/* Start position - Changed to cube */}
-      <mesh 
-        ref={startRef} 
-        castShadow 
-        onClick={handleStartClick}
-      >
-        <boxGeometry args={[cellSize! * 0.7, cellSize! * 0.7, cellSize! * 0.7]} />
+      {/* Start cube */}
+      <mesh ref={startRef} castShadow onClick={handleStartClick}>
+        <boxGeometry args={[cellSize * 0.7, cellSize * 0.7, cellSize * 0.7]} />
         <meshStandardMaterial 
           color="#4ade80" 
           emissive="#4ade80" 
@@ -337,9 +337,9 @@ function MazeScene({ grid, cellSize, isAnimating, startAnimation }: MazeScenePro
         />
       </mesh>
 
-      {/* End position - Changed to cube */}
+      {/* End cube */}
       <mesh ref={endRef} castShadow>
-        <boxGeometry args={[cellSize! * 0.7, cellSize! * 0.7, cellSize! * 0.7]} />
+        <boxGeometry args={[cellSize * 0.7, cellSize * 0.7, cellSize * 0.7]} />
         <meshStandardMaterial 
           color="#ef4444" 
           emissive="#ef4444" 
@@ -351,35 +351,34 @@ function MazeScene({ grid, cellSize, isAnimating, startAnimation }: MazeScenePro
       </mesh>
 
       {/* BFS Expansion Cubes */}
-      {isAnimating && expansionPath.map((node, index) => {
+      {isAnimating && expansionPath.map((node) => {
         if (
-          (node.x === startPos.x && node.z === startPos.z) || 
+          (node.x === startPos.x && node.z === startPos.z) ||
           (node.x === endPos.x && node.z === endPos.z)
         ) {
-          return null; // Skip start and end positions
+          return null
         }
         
-        const worldX = (node.x - width / 2) * cellSize!;
-        const worldZ = (node.z - height / 2) * cellSize!;
+        const worldX = (node.x - width / 2) * cellSize
+        const worldZ = (node.z - height / 2) * cellSize
         
-        // Gradient color based on distance from start
-        const maxDistance = Math.max(...expansionPath.map(n => n.distance));
-        const colorProgress = node.distance / maxDistance;
-        const color = new THREE.Color().setHSL(
-          0.3 - (0.3 * colorProgress), // From green to blue
+        const maxDistance = Math.max(...expansionPath.map(n => n.distance))
+        const colorProgress = node.distance / maxDistance
+        const cubeColor = new THREE.Color().setHSL(
+          0.3 - (0.3 * colorProgress),
           0.8,
           0.5
-        ).getHexString();
+        ).getHexString()
         
         return (
           <ExpansionCube 
             key={`${node.x}-${node.z}`}
             position={[worldX, 0.5, worldZ]}
-            scale={{ x: 0.7 * cellSize!, y: 0.7 * cellSize!, z: 0.7 * cellSize! }}
-            color={`#${color}`}
+            scale={{ x: 0.7 * cellSize, y: 0.7 * cellSize, z: 0.7 * cellSize }}
+            color={`#${cubeColor}`}
             delay={node.distance}
           />
-        );
+        )
       })}
 
       {/* Labels */}
@@ -392,13 +391,13 @@ function MazeScene({ grid, cellSize, isAnimating, startAnimation }: MazeScenePro
 
       {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.75, 0]} receiveShadow>
-        <planeGeometry args={[width * cellSize! * 1.5, height * cellSize! * 1.5]} />
+        <planeGeometry args={[width * cellSize * 1.5, height * cellSize * 1.5]} />
         <meshStandardMaterial color="#111111" roughness={0.8} metalness={0.2} />
       </mesh>
 
-      {/* Grid for reference */}
+      {/* Grid helper */}
       <gridHelper
-        args={[Math.max(width, height) * cellSize! * 1.5, Math.max(width, height) * 2, "#444444", "#222222"]}
+        args={[Math.max(width, height) * cellSize * 1.5, Math.max(width, height) * 2, "#444444", "#222222"]}
         position={[0, -0.01, 0]}
       />
     </group>
