@@ -1,4 +1,4 @@
-import MazeRenderer from "@/components/maze-renderer"
+import MazeRenderer from "@/components/MazeRenderer"
 import type { MazeGrid } from "@/app/types/maze"
 
 // Example maze layout:
