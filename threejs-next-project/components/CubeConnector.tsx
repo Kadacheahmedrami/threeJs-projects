@@ -25,6 +25,7 @@ export default function CubeConnector({
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    // Clear any existing timeouts to prevent memory leaks
     const timer = setTimeout(() => {
       setVisible(true)
     }, delay * 100)

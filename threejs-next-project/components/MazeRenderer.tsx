@@ -4,15 +4,46 @@ import { useState, useEffect } from "react"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, Stars } from "@react-three/drei"
 import MazeScene from "./MazeScene"
+import SearchAlgorithmSelector from "./SearchAlgorithmSelector"
 import type { MazeProps } from "@/app/types/maze"
+import type { SearchAlgorithm } from "@/app/types/search"
 
 export default function MazeRenderer({ grid, cellSize = 1 }: MazeProps) {
   const [isAnimating, setIsAnimating] = useState<boolean>(false)
   const [showInstructions, setShowInstructions] = useState<boolean>(true)
+  const [showSelector, setShowSelector] = useState<boolean>(false)
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<SearchAlgorithm | null>(null)
+  const [canRestart, setCanRestart] = useState<boolean>(false)
+  // Use a key to force re-render of MazeScene on restart
+  const [sceneKey, setSceneKey] = useState<number>(0)
 
   const startAnimation = () => {
-    setIsAnimating(true)
+    setShowSelector(true)
     setShowInstructions(false)
+  }
+
+  const handleAlgorithmSelect = (algorithm: SearchAlgorithm) => {
+    setSelectedAlgorithm(algorithm)
+    setShowSelector(false)
+    setIsAnimating(true)
+  }
+
+  const handleRestart = () => {
+    // Completely reset the state
+    setIsAnimating(false)
+    setSelectedAlgorithm(null)
+    setShowSelector(false)
+    setCanRestart(false)
+    setSceneKey((prev) => prev + 1) // Force re-render of MazeScene
+
+    // Short delay before allowing to start again
+    setTimeout(() => {
+      setShowInstructions(true)
+    }, 500)
+  }
+
+  const handleAnimationComplete = () => {
+    setCanRestart(true)
   }
 
   // Hide instructions after 10 seconds
@@ -45,7 +76,15 @@ export default function MazeRenderer({ grid, cellSize = 1 }: MazeProps) {
         {/* Add stars for a more dynamic background */}
         <Stars radius={50} depth={50} count={1000} factor={4} saturation={0} fade speed={1} />
 
-        <MazeScene grid={grid} cellSize={cellSize} isAnimating={isAnimating} startAnimation={startAnimation} />
+        <MazeScene
+          key={sceneKey} // Force re-render on restart
+          grid={grid}
+          cellSize={cellSize}
+          isAnimating={isAnimating}
+          startAnimation={startAnimation}
+          searchAlgorithm={selectedAlgorithm}
+          onAnimationComplete={handleAnimationComplete}
+        />
         <OrbitControls
           enableDamping
           dampingFactor={0.05}
@@ -65,6 +104,17 @@ export default function MazeRenderer({ grid, cellSize = 1 }: MazeProps) {
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 p-2 rounded-lg animate-pulse">
           Click on the green START cube to begin expansion animation
         </div>
+      )}
+
+      {showSelector && <SearchAlgorithmSelector onSelect={handleAlgorithmSelect} />}
+
+      {canRestart && (
+        <button
+          onClick={handleRestart}
+          className="absolute bottom-4 right-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
+        >
+          Restart
+        </button>
       )}
     </div>
   )

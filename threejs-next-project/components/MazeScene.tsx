@@ -6,22 +6,39 @@ import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { Text } from "@react-three/drei"
 import * as THREE from "three"
 import ExpansionCube from "./ExpansionCube"
+import CubeConnector from "./CubeConnector"
 import type { MazeProps } from "@/app/types/maze"
-import { calculateBfsExpansionPath } from "@/app/utils/bfs"
+import type { SearchAlgorithm } from "@/app/types/search"
+import {
+  calculateBfsExpansionPath,
+  calculateDfsExpansionPath,
+  calculateUniformCostExpansionPath,
+  calculateAStarExpansionPath,
+} from "@/app/utils/search-algorithms"
 
 interface MazeSceneProps extends MazeProps {
   isAnimating: boolean
   startAnimation: () => void
   cellSize?: number
+  searchAlgorithm: SearchAlgorithm | null
+  onAnimationComplete?: () => void
 }
 
-export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimation }: MazeSceneProps) {
+export default function MazeScene({
+  grid,
+  cellSize = 1,
+  isAnimating,
+  startAnimation,
+  searchAlgorithm,
+  onAnimationComplete,
+}: MazeSceneProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
   const startRef = useRef<THREE.Mesh>(null)
   const endRef = useRef<THREE.Mesh>(null)
   const startTextRef = useRef<THREE.Object3D>(null)
   const endTextRef = useRef<THREE.Object3D>(null)
   const [expansionPath, setExpansionPath] = useState<any[]>([])
+  const [algorithmName, setAlgorithmName] = useState<string>("")
   const { raycaster, camera, mouse } = useThree()
 
   // Calculate maze dimensions
@@ -47,21 +64,64 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
     return { startPos: start, endPos: end }
   }, [grid])
 
-  // Use the BFS utility to calculate the expansion path when animation starts
+  // Reset expansion path when not animating
   useEffect(() => {
-    if (!isAnimating) return
-    const expansionNodes = calculateBfsExpansionPath(grid, startPos)
+    if (!isAnimating) {
+      setExpansionPath([])
+      setAlgorithmName("")
+    }
+  }, [isAnimating])
+
+  // Use the selected search algorithm to calculate the expansion path
+  useEffect(() => {
+    if (!isAnimating || !searchAlgorithm) return
+
+    let expansionNodes = []
+
+    switch (searchAlgorithm) {
+      case "bfs":
+        expansionNodes = calculateBfsExpansionPath(grid, startPos)
+        setAlgorithmName("Breadth-First Search")
+        break
+      case "dfs":
+        expansionNodes = calculateDfsExpansionPath(grid, startPos)
+        setAlgorithmName("Depth-First Search")
+        break
+      case "ucs":
+        expansionNodes = calculateUniformCostExpansionPath(grid, startPos)
+        setAlgorithmName("Uniform Cost Search")
+        break
+      case "astar":
+        expansionNodes = calculateAStarExpansionPath(grid, startPos)
+        setAlgorithmName("A* Search")
+        break
+      default:
+        expansionNodes = calculateBfsExpansionPath(grid, startPos)
+        setAlgorithmName("Breadth-First Search")
+    }
+
     setExpansionPath(expansionNodes)
-  }, [isAnimating, grid, startPos])
+
+    // Notify when animation is complete (after the last node is expanded)
+    const maxDelay = Math.max(...expansionNodes.map((node) => node.distance))
+    const timer = setTimeout(
+      () => {
+        if (onAnimationComplete) onAnimationComplete()
+      },
+      (maxDelay + 5) * 100,
+    ) // Add a buffer to ensure all animations complete
+
+    return () => clearTimeout(timer)
+  }, [isAnimating, grid, startPos, searchAlgorithm, onAnimationComplete])
 
   // Create a map of neighboring cells for each expansion node
   const nodeNeighbors = useMemo(() => {
-    const neighbors = new Map()
+    const neighbors = new Map<string, { x: number; z: number }[]>()
 
     if (expansionPath.length > 0) {
       expansionPath.forEach((node) => {
         const key = `${node.x},${node.z}`
-        const nodeNeighbors: { x: any; z: any }[] = []
+        const nodeNeighbors: { x: number; z: number }[] = []
 
         // Check all 4 directions
         const directions = [
@@ -182,7 +242,7 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
 
       {/* Start Cube */}
       <mesh ref={startRef} castShadow onClick={handleStartClick}>
-        <boxGeometry args={[cellSize, cellSize, cellSize]} /> {/* Full size to remove gaps */}
+        <boxGeometry args={[cellSize, cellSize, cellSize]} />
         <meshStandardMaterial
           color="#4ade80"
           emissive="#4ade80"
@@ -194,7 +254,7 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
 
       {/* End Cube */}
       <mesh ref={endRef} castShadow>
-        <boxGeometry args={[cellSize, cellSize, cellSize]} /> {/* Full size to remove gaps */}
+        <boxGeometry args={[cellSize, cellSize, cellSize]} />
         <meshStandardMaterial
           color="#ef4444"
           emissive="#ef4444"
@@ -205,9 +265,25 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
         <pointLight color="#ef4444" intensity={1} distance={3} />
       </mesh>
 
+      {/* Algorithm Name */}
+      {isAnimating && algorithmName && (
+        <Text
+          position={[0, 5, -10]}
+          fontSize={1}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.05}
+          outlineColor="#000000"
+        >
+          {algorithmName}
+        </Text>
+      )}
+
       {/* BFS Expansion Cubes */}
       {isAnimating &&
         expansionPath.map((node) => {
+          // Skip rendering for start and goal nodes if needed
           if ((node.x === startPos.x && node.z === startPos.z) || (node.x === endPos.x && node.z === endPos.z)) {
             return null
           }
@@ -227,13 +303,47 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
             <ExpansionCube
               key={`${node.x}-${node.z}`}
               position={[worldX, 0.5, worldZ]}
-              scale={{ x: cellSize, y: cellSize, z: cellSize }} // Full size to remove gaps
+              scale={{ x: cellSize, y: cellSize, z: cellSize }}
               color={`#${cubeColor}`}
               delay={node.distance}
               neighbors={neighbors}
             />
           )
         })}
+
+      {/* Cube Connectors */}
+      {isAnimating && (
+        <>
+          {expansionPath.map((node) => {
+            const nodeX = (node.x - width / 2) * cellSize
+            const nodeY = 0.5
+            const nodeZ = (node.z - height / 2) * cellSize
+            const key = `${node.x},${node.z}`
+            const neighbors = nodeNeighbors.get(key) || []
+
+            // For each neighbor, render a connector only once
+            return neighbors.map((neighbor) => {
+              // Render connector only if the current node is "less" than its neighbor to avoid duplicates
+              if (node.x < neighbor.x || (node.x === neighbor.x && node.z < neighbor.z)) {
+                const neighborX = (neighbor.x - width / 2) * cellSize
+                const neighborY = 0.5
+                const neighborZ = (neighbor.z - height / 2) * cellSize
+                return (
+                  <CubeConnector
+                    key={`${node.x},${node.z}-${neighbor.x},${neighbor.z}`}
+                    startPosition={[nodeX, nodeY, nodeZ]}
+                    endPosition={[neighborX, neighborY, neighborZ]}
+                    color="#ffffff"
+                    thickness={0.05}
+                    delay={node.distance}
+                  />
+                )
+              }
+              return null
+            })
+          })}
+        </>
+      )}
 
       {/* Labels */}
       <Text ref={startTextRef} position={[0, 2, 0]} fontSize={0.5} color="white" anchorX="center" anchorY="middle">

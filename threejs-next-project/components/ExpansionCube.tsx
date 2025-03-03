@@ -22,6 +22,9 @@ export default function ExpansionCube({ position, scale, color, delay, neighbors
   const [fullyAnimated, setFullyAnimated] = useState<boolean>(false)
 
   useEffect(() => {
+    // Clear any existing timeouts to prevent memory leaks
+    const timers: NodeJS.Timeout[] = []
+
     const timer = setTimeout(() => {
       setActive(true)
 
@@ -30,10 +33,15 @@ export default function ExpansionCube({ position, scale, color, delay, neighbors
         setFullyAnimated(true)
       }, 500)
 
-      return () => clearTimeout(fullTimer)
+      timers.push(fullTimer)
     }, delay * 100) // Faster animation sequence
 
-    return () => clearTimeout(timer)
+    timers.push(timer)
+
+    return () => {
+      // Clean up all timeouts when component unmounts or re-renders
+      timers.forEach((t) => clearTimeout(t))
+    }
   }, [delay])
 
   useFrame((state) => {
@@ -43,7 +51,6 @@ export default function ExpansionCube({ position, scale, color, delay, neighbors
 
     if (fullyAnimated) {
       // More dynamic animation after full expansion
-
     } else {
       // Initial expansion animation
       const progress = Math.min((state.clock.elapsedTime - delay * 0.1) * 2, 1)
