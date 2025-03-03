@@ -1,7 +1,8 @@
+// components/MazeScene.tsx
 "use client"
 
 import { useRef, useState, useEffect, useMemo } from "react"
-import { useFrame, useThree, ThreeEvent } from "@react-three/fiber"
+import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { Text } from "@react-three/drei"
 import * as THREE from "three"
 import ExpansionCube from "./ExpansionCube"
@@ -9,9 +10,9 @@ import type { MazeProps } from "@/app/types/maze"
 import { calculateBfsExpansionPath } from "@/app/utils/bfs"
 
 interface MazeSceneProps extends MazeProps {
-  isAnimating: boolean;
-  startAnimation: () => void;
-  cellSize?: number;
+  isAnimating: boolean
+  startAnimation: () => void
+  cellSize?: number
 }
 
 export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimation }: MazeSceneProps) {
@@ -26,16 +27,11 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
   // Calculate maze dimensions
   const width = grid[0].length
   const height = grid.length
-  
+
   // Count walls for the instanced mesh
   const wallCount = grid.reduce<number>(
-    (count, row) =>
-      count +
-      row.reduce<number>(
-        (rowCount, cell) => rowCount + (cell === 1 ? 1 : 0),
-        0
-      ),
-    0
+    (count, row) => count + row.reduce<number>((rowCount, cell) => rowCount + (cell === 1 ? 1 : 0), 0),
+    0,
   )
 
   // Memoize start and end positions to avoid re-creation on every render
@@ -57,6 +53,42 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
     const expansionNodes = calculateBfsExpansionPath(grid, startPos)
     setExpansionPath(expansionNodes)
   }, [isAnimating, grid, startPos])
+
+  // Create a map of neighboring cells for each expansion node
+  const nodeNeighbors = useMemo(() => {
+    const neighbors = new Map()
+
+    if (expansionPath.length > 0) {
+      expansionPath.forEach((node) => {
+        const key = `${node.x},${node.z}`
+        const nodeNeighbors: { x: any; z: any }[] = []
+
+        // Check all 4 directions
+        const directions = [
+          { dx: 1, dz: 0 },
+          { dx: -1, dz: 0 },
+          { dx: 0, dz: 1 },
+          { dx: 0, dz: -1 },
+        ]
+
+        directions.forEach((dir) => {
+          const nx = node.x + dir.dx
+          const nz = node.z + dir.dz
+
+          // Check if this neighbor is also in the expansion path
+          const hasNeighbor = expansionPath.some((n) => n.x === nx && n.z === nz)
+
+          if (hasNeighbor) {
+            nodeNeighbors.push({ x: nx, z: nz })
+          }
+        })
+
+        neighbors.set(key, nodeNeighbors)
+      })
+    }
+
+    return neighbors
+  }, [expansionPath])
 
   const handleStartClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
@@ -109,12 +141,18 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
       const startWorldX = (startPos.x - width / 2) * cellSize
       const startWorldZ = (startPos.z - height / 2) * cellSize
       startRef.current.position.set(startWorldX, 0.5, startWorldZ)
+
+      // Add pulsing animation to start cube
+      startRef.current.scale.y = 1 + Math.sin(state.clock.getElapsedTime() * 3) * 0.1
     }
 
     if (endRef.current) {
       const endWorldX = (endPos.x - width / 2) * cellSize
       const endWorldZ = (endPos.z - height / 2) * cellSize
       endRef.current.position.set(endWorldX, 0.5, endWorldZ)
+
+      // Add pulsing animation to end cube
+      endRef.current.scale.y = 1 + Math.sin(state.clock.getElapsedTime() * 2.5 + 1) * 0.1
     }
 
     // Update label positions
@@ -138,17 +176,17 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
     <group>
       {/* Walls */}
       <instancedMesh ref={meshRef} args={[undefined, undefined, wallCount]} castShadow receiveShadow>
-        <boxGeometry args={[cellSize * 0.9, 1.5, cellSize * 0.9]} />
+        <boxGeometry args={[cellSize, 1.5, cellSize]} /> {/* Full size to remove gaps */}
         <meshStandardMaterial roughness={0.4} metalness={0.6} />
       </instancedMesh>
 
       {/* Start Cube */}
       <mesh ref={startRef} castShadow onClick={handleStartClick}>
-        <boxGeometry args={[cellSize * 0.7, cellSize * 0.7, cellSize * 0.7]} />
-        <meshStandardMaterial 
-          color="#4ade80" 
-          emissive="#4ade80" 
-          emissiveIntensity={0.5} 
+        <boxGeometry args={[cellSize, cellSize, cellSize]} /> {/* Full size to remove gaps */}
+        <meshStandardMaterial
+          color="#4ade80"
+          emissive="#4ade80"
+          emissiveIntensity={0.5}
           roughness={0.3}
           metalness={0.5}
         />
@@ -156,10 +194,10 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
 
       {/* End Cube */}
       <mesh ref={endRef} castShadow>
-        <boxGeometry args={[cellSize * 0.7, cellSize * 0.7, cellSize * 0.7]} />
-        <meshStandardMaterial 
-          color="#ef4444" 
-          emissive="#ef4444" 
+        <boxGeometry args={[cellSize, cellSize, cellSize]} /> {/* Full size to remove gaps */}
+        <meshStandardMaterial
+          color="#ef4444"
+          emissive="#ef4444"
           emissiveIntensity={0.5}
           roughness={0.3}
           metalness={0.5}
@@ -168,35 +206,34 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
       </mesh>
 
       {/* BFS Expansion Cubes */}
-      {isAnimating && expansionPath.map((node) => {
-        if (
-          (node.x === startPos.x && node.z === startPos.z) ||
-          (node.x === endPos.x && node.z === endPos.z)
-        ) {
-          return null
-        }
-        
-        const worldX = (node.x - width / 2) * cellSize
-        const worldZ = (node.z - height / 2) * cellSize
-        
-        const maxDistance = Math.max(...expansionPath.map(n => n.distance))
-        const colorProgress = node.distance / maxDistance
-        const cubeColor = new THREE.Color().setHSL(
-          0.3 - (0.3 * colorProgress),
-          0.8,
-          0.5
-        ).getHexString()
-        
-        return (
-          <ExpansionCube 
-            key={`${node.x}-${node.z}`}
-            position={[worldX, 0.5, worldZ]}
-            scale={{ x: 0.7 * cellSize, y: 0.7 * cellSize, z: 0.7 * cellSize }}
-            color={`#${cubeColor}`}
-            delay={node.distance}
-          />
-        )
-      })}
+      {isAnimating &&
+        expansionPath.map((node) => {
+          if ((node.x === startPos.x && node.z === startPos.z) || (node.x === endPos.x && node.z === endPos.z)) {
+            return null
+          }
+
+          const worldX = (node.x - width / 2) * cellSize
+          const worldZ = (node.z - height / 2) * cellSize
+
+          const maxDistance = Math.max(...expansionPath.map((n) => n.distance))
+          const colorProgress = node.distance / maxDistance
+          const cubeColor = new THREE.Color().setHSL(0.3 - 0.3 * colorProgress, 0.8, 0.5).getHexString()
+
+          // Get neighbors for this node
+          const key = `${node.x},${node.z}`
+          const neighbors = nodeNeighbors.get(key) || []
+
+          return (
+            <ExpansionCube
+              key={`${node.x}-${node.z}`}
+              position={[worldX, 0.5, worldZ]}
+              scale={{ x: cellSize, y: cellSize, z: cellSize }} // Full size to remove gaps
+              color={`#${cubeColor}`}
+              delay={node.distance}
+              neighbors={neighbors}
+            />
+          )
+        })}
 
       {/* Labels */}
       <Text ref={startTextRef} position={[0, 2, 0]} fontSize={0.5} color="white" anchorX="center" anchorY="middle">
@@ -220,3 +257,4 @@ export default function MazeScene({ grid, cellSize = 1, isAnimating, startAnimat
     </group>
   )
 }
+
