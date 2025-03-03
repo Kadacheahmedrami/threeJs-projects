@@ -6,40 +6,33 @@ import * as THREE from "three"
 
 interface ExpansionCubeProps {
   position: [number, number, number]
-  scale: {
-    x: number
-    y: number
-    z: number
-  }
+  scale: { x: number; y: number; z: number }
   color: string
   delay: number
-  neighbors?: { x: number; z: number }[]
+  // Removed unused 'neighbors' prop
 }
 
-export default function ExpansionCube({ position, scale, color, delay, neighbors }: ExpansionCubeProps) {
+export default function ExpansionCube({ position, scale, color, delay }: ExpansionCubeProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [active, setActive] = useState<boolean>(false)
   const [fullyAnimated, setFullyAnimated] = useState<boolean>(false)
 
   useEffect(() => {
-    // Clear any existing timeouts to prevent memory leaks
     const timers: NodeJS.Timeout[] = []
 
     const timer = setTimeout(() => {
       setActive(true)
 
-      // Set fully animated after the initial expansion
       const fullTimer = setTimeout(() => {
         setFullyAnimated(true)
       }, 500)
 
       timers.push(fullTimer)
-    }, delay * 100) // Faster animation sequence
+    }, delay * 100)
 
     timers.push(timer)
 
     return () => {
-      // Clean up all timeouts when component unmounts or re-renders
       timers.forEach((t) => clearTimeout(t))
     }
   }, [delay])
@@ -49,30 +42,27 @@ export default function ExpansionCube({ position, scale, color, delay, neighbors
 
     const time = state.clock.getElapsedTime()
 
-    if (fullyAnimated) {
-      // More dynamic animation after full expansion
-    } else {
-      // Initial expansion animation
+    if (!fullyAnimated) {
       const progress = Math.min((state.clock.elapsedTime - delay * 0.1) * 2, 1)
       meshRef.current.scale.set(scale.x * progress, scale.y * progress, scale.z * progress)
     }
 
-    // Dynamic color pulsing
     if (meshRef.current.material instanceof THREE.MeshStandardMaterial) {
       const emissiveIntensity = 0.3 + Math.sin(time * 4 + delay) * 0.2
       meshRef.current.material.emissiveIntensity = emissiveIntensity
     }
   })
 
-  // Start with zero scale and expand to full size
-  const initialScale = active ? [scale.x, scale.y, scale.z] : [0.01, 0.01, 0.01]
+  const initialScale: [number, number, number] = active
+    ? [scale.x, scale.y, scale.z]
+    : [0.01, 0.01, 0.01]
 
   return (
-    <mesh ref={meshRef} position={position} scale={initialScale as any} castShadow receiveShadow>
-      <boxGeometry args={[1.0, 1.0, 1.0]} /> {/* Full size to remove gaps */}
+    <mesh ref={meshRef} position={position} scale={initialScale} castShadow receiveShadow>
+      <boxGeometry args={[1.0, 1.0, 1.0]} />
       <meshStandardMaterial
         color={color}
-        transparent={true}
+        transparent
         opacity={0.9}
         roughness={0.2}
         metalness={0.4}
@@ -82,4 +72,3 @@ export default function ExpansionCube({ position, scale, color, delay, neighbors
     </mesh>
   )
 }
-

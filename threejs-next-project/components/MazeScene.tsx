@@ -1,4 +1,3 @@
-// components/MazeScene.tsx
 "use client"
 
 import { useRef, useState, useEffect, useMemo } from "react"
@@ -15,6 +14,12 @@ import {
   calculateUniformCostExpansionPath,
   calculateAStarExpansionPath,
 } from "@/app/utils/search"
+
+interface MazeNode {
+  x: number
+  z: number
+  distance: number
+}
 
 interface MazeSceneProps extends MazeProps {
   isAnimating: boolean
@@ -37,7 +42,7 @@ export default function MazeScene({
   const endRef = useRef<THREE.Mesh>(null)
   const startTextRef = useRef<THREE.Object3D>(null)
   const endTextRef = useRef<THREE.Object3D>(null)
-  const [expansionPath, setExpansionPath] = useState<any[]>([])
+  const [expansionPath, setExpansionPath] = useState<MazeNode[]>([])
   const [algorithmName, setAlgorithmName] = useState<string>("")
   const { raycaster, camera, mouse } = useThree()
 
@@ -76,7 +81,7 @@ export default function MazeScene({
   useEffect(() => {
     if (!isAnimating || !searchAlgorithm) return
 
-    let expansionNodes = []
+    let expansionNodes: MazeNode[] = []
 
     switch (searchAlgorithm) {
       case "bfs":
@@ -201,8 +206,6 @@ export default function MazeScene({
       const startWorldX = (startPos.x - width / 2) * cellSize
       const startWorldZ = (startPos.z - height / 2) * cellSize
       startRef.current.position.set(startWorldX, 0.5, startWorldZ)
-
-      // Add pulsing animation to start cube
       startRef.current.scale.y = 1 + Math.sin(state.clock.getElapsedTime() * 3) * 0.1
     }
 
@@ -210,8 +213,6 @@ export default function MazeScene({
       const endWorldX = (endPos.x - width / 2) * cellSize
       const endWorldZ = (endPos.z - height / 2) * cellSize
       endRef.current.position.set(endWorldX, 0.5, endWorldZ)
-
-      // Add pulsing animation to end cube
       endRef.current.scale.y = 1 + Math.sin(state.clock.getElapsedTime() * 2.5 + 1) * 0.1
     }
 
@@ -236,7 +237,7 @@ export default function MazeScene({
     <group>
       {/* Walls */}
       <instancedMesh ref={meshRef} args={[undefined, undefined, wallCount]} castShadow receiveShadow>
-        <boxGeometry args={[cellSize, 1.5, cellSize]} /> {/* Full size to remove gaps */}
+        <boxGeometry args={[cellSize, 1.5, cellSize]} />
         <meshStandardMaterial roughness={0.4} metalness={0.6} />
       </instancedMesh>
 
@@ -295,10 +296,6 @@ export default function MazeScene({
           const colorProgress = node.distance / maxDistance
           const cubeColor = new THREE.Color().setHSL(0.3 - 0.3 * colorProgress, 0.8, 0.5).getHexString()
 
-          // Get neighbors for this node
-          const key = `${node.x},${node.z}`
-          const neighbors = nodeNeighbors.get(key) || []
-
           return (
             <ExpansionCube
               key={`${node.x}-${node.z}`}
@@ -306,7 +303,6 @@ export default function MazeScene({
               scale={{ x: cellSize, y: cellSize, z: cellSize }}
               color={`#${cubeColor}`}
               delay={node.distance}
-              neighbors={neighbors}
             />
           )
         })}
@@ -323,7 +319,6 @@ export default function MazeScene({
 
             // For each neighbor, render a connector only once
             return neighbors.map((neighbor) => {
-              // Render connector only if the current node is "less" than its neighbor to avoid duplicates
               if (node.x < neighbor.x || (node.x === neighbor.x && node.z < neighbor.z)) {
                 const neighborX = (neighbor.x - width / 2) * cellSize
                 const neighborY = 0.5
@@ -367,4 +362,3 @@ export default function MazeScene({
     </group>
   )
 }
-

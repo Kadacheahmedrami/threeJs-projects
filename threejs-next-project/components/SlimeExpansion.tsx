@@ -5,8 +5,15 @@ import { useFrame } from "@react-three/fiber"
 import * as THREE from "three"
 import { MeshTransmissionMaterial } from "@react-three/drei"
 
+// Define an interface for each node in the expansion path
+interface ExpansionNode {
+  x: number
+  z: number
+  distance: number
+}
+
 interface SlimeExpansionProps {
-  expansionPath: any[]
+  expansionPath: ExpansionNode[] // Previously any[], now properly typed
   startPos: { x: number; z: number }
   endPos: { x: number; z: number }
   width: number
@@ -26,15 +33,6 @@ export default function SlimeExpansion({
   const [activeCells, setActiveCells] = useState<Set<string>>(new Set())
   const [animationProgress, setAnimationProgress] = useState(0)
 
-  // Create a map of cell positions to their distance from start
-  const cellDistanceMap = useMemo(() => {
-    const map = new Map<string, number>()
-    expansionPath.forEach((node) => {
-      map.set(`${node.x},${node.z}`, node.distance)
-    })
-    return map
-  }, [expansionPath])
-
   // Get the maximum distance in the path
   const maxDistance = useMemo(() => {
     return Math.max(...expansionPath.map((node) => node.distance))
@@ -45,7 +43,6 @@ export default function SlimeExpansion({
     // Create a merged geometry for all potential cells
     const geometry = new THREE.BoxGeometry(cellSize * 0.9, cellSize * 0.5, cellSize * 0.9)
     geometry.translate(0, 0.25, 0) // Lift slightly above ground
-
     return geometry
   }, [cellSize])
 
@@ -61,7 +58,6 @@ export default function SlimeExpansion({
         return newProgress
       })
     }, 50)
-
     return () => clearInterval(interval)
   }, [])
 
@@ -69,13 +65,11 @@ export default function SlimeExpansion({
   useEffect(() => {
     const currentDistance = Math.floor(maxDistance * animationProgress)
     const newActiveCells = new Set<string>()
-
     expansionPath.forEach((node) => {
       if (node.distance <= currentDistance) {
         newActiveCells.add(`${node.x},${node.z}`)
       }
     })
-
     setActiveCells(newActiveCells)
   }, [animationProgress, expansionPath, maxDistance])
 
@@ -105,7 +99,6 @@ export default function SlimeExpansion({
 
     // Animate the slime material
     if (meshRef.current.material instanceof THREE.Material) {
-      // Pulsing effect
       const material = meshRef.current.material as THREE.MeshStandardMaterial
       material.emissiveIntensity = 0.3 + Math.sin(time * 2) * 0.1
     }
@@ -129,7 +122,6 @@ export default function SlimeExpansion({
           positionAttribute.setXYZ(i, x + waveX, y + waveY, z + waveZ)
         }
       }
-
       positionAttribute.needsUpdate = true
     }
   })
@@ -170,4 +162,3 @@ export default function SlimeExpansion({
     </group>
   )
 }
-
