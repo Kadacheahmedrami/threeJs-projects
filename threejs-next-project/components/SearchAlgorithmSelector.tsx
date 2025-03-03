@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import type { SearchAlgorithm } from "@/app/types/search"
+import type { SearchAlgorithm } from "@/app/types/search-types"
 
 interface SearchAlgorithmSelectorProps {
   onSelect: (algorithm: SearchAlgorithm) => void
@@ -54,7 +54,7 @@ export default function SearchAlgorithmSelector({ onSelect }: SearchAlgorithmSel
               <h3 className="text-lg font-semibold text-white mb-2">
                 {algorithms.find((a) => a.id === hoveredAlgorithm)?.name}
               </h3>
-              <p className="text-gray-300">{algorithms.find((a) => a.id === hoveredAlgorithm)?.description}</p>
+              <p className="line-clamp-1 text-gray-300">{algorithms.find((a) => a.id === hoveredAlgorithm)?.description}</p>
             </div>
           ) : (
             <p className="text-gray-400 text-center">Hover over an algorithm to see its description</p>

@@ -8,13 +8,13 @@ import * as THREE from "three"
 import ExpansionCube from "./ExpansionCube"
 import CubeConnector from "./CubeConnector"
 import type { MazeProps } from "@/app/types/maze"
-import type { SearchAlgorithm } from "@/app/types/search"
+import type { SearchAlgorithm } from "@/app/types/search-types"
 import {
   calculateBfsExpansionPath,
   calculateDfsExpansionPath,
   calculateUniformCostExpansionPath,
   calculateAStarExpansionPath,
-} from "@/app/utils/search-algorithms"
+} from "@/app/utils/search"
 
 interface MazeSceneProps extends MazeProps {
   isAnimating: boolean

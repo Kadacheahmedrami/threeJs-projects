@@ -6,7 +6,7 @@ import { OrbitControls, Stars } from "@react-three/drei"
 import MazeScene from "./MazeScene"
 import SearchAlgorithmSelector from "./SearchAlgorithmSelector"
 import type { MazeProps } from "@/app/types/maze"
-import type { SearchAlgorithm } from "@/app/types/search"
+import type { SearchAlgorithm } from "@/app/types/search-types"
 
 export default function MazeRenderer({ grid, cellSize = 1 }: MazeProps) {
   const [isAnimating, setIsAnimating] = useState<boolean>(false)
