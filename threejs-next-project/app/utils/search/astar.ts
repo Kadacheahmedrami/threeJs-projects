@@ -86,5 +86,6 @@ export function calculateAStarExpansionPath(
     }
   }
   
+  console.log(expansionNodes)
   return expansionNodes;
 }

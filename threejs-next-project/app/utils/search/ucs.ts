@@ -60,7 +60,7 @@ export function calculateUniformCostExpansionPath(
       }
     }
   }
-
+  
   return expansionNodes
 }
 
