@@ -17,6 +17,7 @@ export default function MazeRenderer({ grid, cellSize = 1 }: MazeProps) {
   // Use a key to force re-render of MazeScene on restart
   const [sceneKey, setSceneKey] = useState<number>(0)
 
+  // Note: With the updated SearchAlgorithm type, this now supports "greedy" as well.
   const startAnimation = () => {
     setShowSelector(true)
     setShowInstructions(false)
@@ -119,4 +120,3 @@ export default function MazeRenderer({ grid, cellSize = 1 }: MazeProps) {
     </div>
   )
 }
-

@@ -21,8 +21,21 @@ export default function SearchAlgorithmSelector({ onSelect }: SearchAlgorithmSel
       name: "Depth-First Search",
       description: "Explores as far as possible along each branch before backtracking.",
     },
-    { id: "ucs", name: "Uniform Cost Search", description: "Explores paths in order of increasing path cost." },
-    { id: "astar", name: "A* Search", description: "Uses heuristics to find the shortest path more efficiently." },
+    {
+      id: "ucs",
+      name: "Uniform Cost Search",
+      description: "Explores paths in order of increasing path cost.",
+    },
+    {
+      id: "astar",
+      name: "A* Search",
+      description: "Uses heuristics to find the shortest path more efficiently.",
+    },
+    {
+      id: "greedy",
+      name: "Greedy Best-First Search",
+      description: "Selects the next node to expand based solely on the heuristic estimating the cost from that node to the goal.",
+    },
   ]
 
   return (
@@ -54,14 +67,17 @@ export default function SearchAlgorithmSelector({ onSelect }: SearchAlgorithmSel
               <h3 className="text-lg font-semibold text-white mb-2">
                 {algorithms.find((a) => a.id === hoveredAlgorithm)?.name}
               </h3>
-              <p className="line-clamp-1 text-gray-300">{algorithms.find((a) => a.id === hoveredAlgorithm)?.description}</p>
+              <p className="line-clamp-1 text-gray-300">
+                {algorithms.find((a) => a.id === hoveredAlgorithm)?.description}
+              </p>
             </div>
           ) : (
-            <p className="text-gray-400 text-center">Hover over an algorithm to see its description</p>
+            <p className="text-gray-400 text-center">
+              Hover over an algorithm to see its description
+            </p>
           )}
         </div>
       </div>
     </div>
   )
 }
-

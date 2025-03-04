@@ -13,6 +13,7 @@ import {
   calculateDfsExpansionPath,
   calculateUniformCostExpansionPath,
   calculateAStarExpansionPath,
+  calculateGreedySearchExpansionPath, // Added Greedy search import
 } from "@/app/utils/search"
 
 interface MazeNode {
@@ -99,6 +100,10 @@ export default function MazeScene({
       case "astar":
         expansionNodes = calculateAStarExpansionPath(grid, startPos)
         setAlgorithmName("A* Search")
+        break
+      case "greedy":
+        expansionNodes = calculateGreedySearchExpansionPath(grid, startPos)
+        setAlgorithmName("Greedy Best-First Search")
         break
       default:
         expansionNodes = calculateBfsExpansionPath(grid, startPos)
@@ -281,7 +286,7 @@ export default function MazeScene({
         </Text>
       )}
 
-      {/* BFS Expansion Cubes */}
+      {/* Expansion Cubes */}
       {isAnimating &&
         expansionPath.map((node) => {
           // Skip rendering for start and goal nodes if needed

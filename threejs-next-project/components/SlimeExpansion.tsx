@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber"
 import * as THREE from "three"
 import { MeshTransmissionMaterial } from "@react-three/drei"
 
+
 // Define an interface for each node in the expansion path
 interface ExpansionNode {
   x: number
