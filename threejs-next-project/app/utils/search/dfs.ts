@@ -7,28 +7,37 @@ export function calculateDfsExpansionPath(
   const height = grid.length
   const width = grid[0].length
 
-  // Create a 2D array for visited flags
   const visited = Array.from({ length: height }, () => Array(width).fill(false))
   const expansionNodes: ExpansionNode[] = []
   let nodeCounter = 0
+  let found = false
 
-  // Simple recursive DFS implementation
-  function dfs(x: number, z: number) {
-    // Stop if out of bounds, at a wall, or already visited
+  // Use a stack for DFS; each item is a node with x and z coordinates.
+  type Node = { x: number; z: number }
+  const stack: Node[] = [{ x: startPos.x, z: startPos.z }]
+
+  while (stack.length > 0 && !found) {
+    const { x, z } = stack.pop()!
+    // Skip out-of-bound, wall, or visited nodes.
     if (x < 0 || x >= width || z < 0 || z >= height || grid[z][x] === 1 || visited[z][x]) {
-      return
+      continue
     }
 
     visited[z][x] = true
     expansionNodes.push({ x, z, distance: nodeCounter++ })
 
-    // Explore neighbors in order: right, down, left, up
-    dfs(x + 1, z)
-    dfs(x, z + 1)
-    dfs(x - 1, z)
-    dfs(x, z - 1)
+    if (grid[z][x] === 3) {
+      found = true
+      break
+    }
+
+    // Push neighbors in reverse order so that they are processed in the order:
+    // right, down, left, up (similar to a recursive DFS)
+    stack.push({ x: x, z: z - 1 }) // Up
+    stack.push({ x: x - 1, z: z }) // Left
+    stack.push({ x: x, z: z + 1 }) // Down
+    stack.push({ x: x + 1, z: z }) // Right
   }
 
-  dfs(startPos.x, startPos.z)
   return expansionNodes
 }
