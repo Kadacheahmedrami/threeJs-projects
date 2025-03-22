@@ -18,12 +18,18 @@ export function calculateDfsExpansionPath(
 
   while (stack.length > 0 && !found) {
     const { x, z } = stack.pop()!
-    // Skip out-of-bound, wall, or visited nodes.
+    
+
+    // to avoid quiting the maze or enrering in a loop 
     if (x < 0 || x >= width || z < 0 || z >= height || grid[z][x] === 1 || visited[z][x]) {
       continue
     }
 
+
+    // mark bli rahi tvistat mn9ball
     visited[z][x] = true
+
+    // ma
     expansionNodes.push({ x, z, distance: nodeCounter++ })
 
     if (grid[z][x] === 3) {

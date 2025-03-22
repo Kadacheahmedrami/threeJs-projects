@@ -18,6 +18,8 @@ export function calculateBfsExpansionPath(grid: number[][], startPos: { x: numbe
   const dz = [0, 1, 0, -1]
 
   while (queue.length > 0) {
+
+    // pop bss7 ta3 file 
     const current = queue.shift()!
     expansionNodes.push({
       x: current.x,
